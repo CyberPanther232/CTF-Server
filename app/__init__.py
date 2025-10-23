@@ -4,6 +4,7 @@ from flask_bcrypt import Bcrypt
 from flask_login import LoginManager
 from flask_sqlalchemy import SQLAlchemy
 import os
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 # --- App Initialization ---
 app = Flask(__name__)
@@ -20,6 +21,12 @@ app.config['REGISTRATION_SECRET_CODE'] = os.environ.get('REGISTRATION_SECRET_COD
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your_secret_key')  # Change in production
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = _env_bool('SQLALCHEMY_TRACK_MODIFICATIONS', False)
 app.config['ADMIN_CODE'] = os.environ.get('ADMIN_CODE', 'admin_secret_code')  # Change in production
+
+# Recommended when running behind Cloudflare/any reverse proxy
+app.config['PREFERRED_URL_SCHEME'] = os.environ.get('PREFERRED_URL_SCHEME', 'https')
+app.config['SESSION_COOKIE_SECURE'] = _env_bool('SESSION_COOKIE_SECURE', not app.config['DEVELOPMENT_MODE'])
+app.config['REMEMBER_COOKIE_SECURE'] = _env_bool('REMEMBER_COOKIE_SECURE', not app.config['DEVELOPMENT_MODE'])
+app.config['SESSION_COOKIE_SAMESITE'] = os.environ.get('SESSION_COOKIE_SAMESITE', 'Lax')
 
 # --- Database Path Configuration ---
 env_db_uri = os.environ.get('SQLALCHEMY_DATABASE_URI')
@@ -41,6 +48,11 @@ db = SQLAlchemy(app)
 bcrypt = Bcrypt(app)
 login_manager = LoginManager(app)
 login_manager.login_view = "index"
+
+# Trust proxy headers (e.g., X-Forwarded-Proto) when behind Cloudflare/NGINX
+if os.environ.get('TRUST_PROXY', '1') in ('1', 'true', 'yes', 'on'):
+    hops = int(os.environ.get('PROXY_FIX_NUM', '1'))
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=hops, x_proto=hops, x_host=hops, x_port=hops, x_prefix=hops)
 
 @login_manager.unauthorized_handler
 def _unauth():

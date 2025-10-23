@@ -12,10 +12,24 @@ services:
       # These provide defaults if not set in app.env
       SQLALCHEMY_DATABASE_URI: ${SQLALCHEMY_DATABASE_URI:-sqlite:////app/data/prod_database.db}
       DEVELOPMENT_MODE: ${DEVELOPMENT_MODE:-False}
-    ports:
-      - "443:5000"  # host:container
+      TRUST_PROXY: ${TRUST_PROXY:-1}
+      PREFERRED_URL_SCHEME: ${PREFERRED_URL_SCHEME:-https}
+    expose:
+      - "5000"
     volumes:
       - ./app/data:/app/data  # persist SQLite DB locally
     restart: unless-stopped
     # Ensure we run the package entrypoint
     command: ["python3", "-m", "app"]
+
+  nginx:
+    image: nginx:stable-alpine
+    depends_on:
+      - web
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+    restart: unless-stopped
