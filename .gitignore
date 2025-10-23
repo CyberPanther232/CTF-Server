@@ -2,3 +2,6 @@
 *.pyc
 __pycache__/
 *.db
+app.env
+app.env.local
+app/data/*.db
