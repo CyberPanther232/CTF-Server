@@ -1,0 +1,22 @@
+# Exclude local dev artifacts and large/unnecessary files from the build context
+.env/
+.git/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Local databases
+*.db
+app/data/*
+!app/data/.gitkeep
+
+# IDE and OS files
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Docker/Compose files not needed in the image (optional to keep)
+# docker-compose.yml
+# app.env
+# app.env.example
