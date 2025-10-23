@@ -5,3 +5,5 @@ __pycache__/
 app.env
 app.env.local
 app/data/*.db
+nginx/certs/*
+!nginx/certs/.gitkeep
