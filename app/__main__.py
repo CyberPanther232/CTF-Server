@@ -17,4 +17,5 @@ if __name__ == "__main__":
         if cert_file and key_file:
             ssl_context = (cert_file, key_file)
 
-    app.run(host=host, port=port, debug=debug, ssl_context=ssl_context)
+    # Disable the Flask reloader in containers to prevent restart loops
+    app.run(host=host, port=port, debug=debug, ssl_context=ssl_context, use_reloader=False)
