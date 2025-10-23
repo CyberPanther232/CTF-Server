@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin - Challenges</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Code+Pro:wght@400;600;700&display=swap" rel="stylesheet">
+    
+  <style>
+      /* Custom styles to enhance the theme */
+      .font-mono {
+          font-family: 'Source Code Pro', monospace;
+      }
+      .glass-effect {
+          background: rgba(23, 31, 46, 0.6);
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(10px);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .neon-glow {
+          box-shadow: 0 0 5px #0ea5e9, 0 0 10px #0ea5e9, 0 0 15px #0ea5e9;
+      }
+      .neon-text {
+          text-shadow: 0 0 5px rgba(14, 165, 233, 0.7), 0 0 10px rgba(14, 165, 233, 0.7);
+      }
+      
+      /* * ======================================
+      * NEW: UI/UX Transition Enhancements
+      * ======================================
+      */
+
+      /* Add transitions to all buttons, links, and cards */
+      .btn, .nav-link, .challenge-card, .level-summary, input, select, textarea, button {
+          transition-property: all;
+          transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+          transition-duration: 300ms;
+      }
+
+      /* Add a subtle "lift" to cards on hover */
+      .glass-effect:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
+      }
+
+      /* Make inputs glow more on focus */
+      input:focus, select:focus, textarea:focus {
+          box-shadow: 0 0 15px rgba(14, 165, 233, 0.5); /* A softer neon glow */
+          border-color: #0ea5e9;
+          outline: none;
+      }
+
+      /* Make the neon glow on buttons more responsive */
+      .neon-glow:hover {
+          box-shadow: 0 0 10px #0ea5e9, 0 0 20px #0ea5e9, 0 0 30px #0ea5e9;
+      }
+
+      /* Standardize input styles */
+      .form-input {
+        @apply w-full bg-slate-800 border border-slate-600 rounded-md px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500;
+      }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100" style="font-family: 'Inter', sans-serif;">
+  <div class="max-w-6xl mx-auto p-6">
+    <header class="flex items-center justify-between mb-8">
+      <h1 class="text-3xl font-bold text-sky-400 neon-text font-mono">ADMIN</h1>
+      <a class="text-sky-400 hover:text-sky-300 hover:underline transition" href="{{ url_for('index') }}">Back to site</a>
+    </header>
+
+    <section class="mb-10">
+      <h2 class="text-2xl font-bold mb-4 text-slate-100">Lessons</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        <form method="POST" action="{{ url_for('admin_create_lesson') }}" class="glass-effect p-6 rounded-lg">
+          <h3 class="font-semibold mb-3 text-lg">Add Lesson</h3>
+          <div class="flex flex-col sm:flex-row gap-3 items-center">
+            <input class="w-full bg-slate-800 border border-slate-600 rounded-md px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 flex-1" name="title" placeholder="Lesson title" required />
+            <button class="w-full sm:w-auto bg-sky-500 hover:bg-sky-600 text-white font-bold py-2 px-4 rounded-md transition duration-300 neon-glow">Create</button>
+          </div>
+        </form>
+
+        <div class="glass-effect p-6 rounded-lg">
+          <h3 class="font-semibold mb-3 text-lg">Existing Lessons</h3>
+          <div class="space-y-3">
+            {% for l in lessons %}
+            <form method="POST" action="{{ url_for('admin_update_lesson', lesson_id=l.id) }}" class="flex flex-col sm:flex-row items-center gap-3">
+              <input class="w-full bg-slate-800 border border-slate-600 rounded-md px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 flex-1" name="title" value="{{ l.title }}" />
+              <div class="flex gap-3 w-full sm:w-auto">
+                <button class="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 px-3 rounded-md transition duration-300">Save</button>
+                <button formmethod="POST" formaction="{{ url_for('admin_delete_lesson', lesson_id=l.id) }}" class="flex-1 sm:flex-none bg-rose-600 hover:bg-rose-700 text-white font-semibold py-2 px-3 rounded-md transition duration-300" onclick="return confirm('Delete this lesson? It must be empty first.')">Delete</button>
+              </div>
+            </form>
+            {% else %}
+            <p class="text-slate-400">No lessons yet.</p>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="mb-8">
+      <h2 class="text-2xl font-bold mb-4 text-slate-100">Add Challenge</h2>
+      <form method="POST" action="{{ url_for('admin_create_challenge') }}" class="grid grid-cols-1 gap-4 glass-effect p-6 rounded-lg">
+        
+        <input class="w-full bg-slate-800 border border-slate-600 rounded-md px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" name="title" placeholder="Title" required />
+        
+        <textarea class="w-full bg-slate-800 border border-slate-600 rounded-md px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" name="description" placeholder="Description" rows="3"></textarea>
+        
+        <div>
+          <label class="block text-sm text-slate-300 mb-1">Lesson (optional)</label>
+          <select class="w-full bg-slate-800 border border-slate-600 rounded-md px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" name="lesson_id">
+            <option value="">— No lesson —</option>
+            {% for l in lessons %}
+              <option value="{{ l.id }}">{{ l.title }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        
+        <div class="flex flex-col sm:flex-row gap-4">
+          <input class="w-full sm:w-40 bg-slate-800 border border-slate-600 rounded-md px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" name="points" type="number" min="0" value="100" />
+          <input class="flex-1 w-full bg-slate-800 border border-slate-600 rounded-md px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" name="flag" placeholder="Flag (e.g., CTF{...})" required />
+        </div>
+        
+        <button class="w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-2 px-4 rounded-md transition duration-300 neon-glow sm:w-40">
+            Create
+        </button>
+      </form>
+    </section>
+
+    <section>
+      <h2 class="text-2xl font-bold mb-4 text-slate-100">Existing Challenges</h2>
+      <div class="space-y-4">
+        {% for c in challenges %}
+        <div class="glass-effect p-6 rounded-lg">
+          <form method="POST" action="{{ url_for('admin_update_challenge', challenge_id=c.id) }}" class="flex flex-col md:flex-row items-start gap-4">
+            <div class="flex-1 space-y-3 w-full">
+              <input class="w-full bg-slate-800 border border-slate-600 rounded-md px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" name="title" value="{{ c.title }}" />
+              <textarea class="w-full bg-slate-800 border border-slate-600 rounded-md px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" name="description" placeholder="Description" rows="3">{{ c.description or '' }}</textarea>
+              <div>
+                <label class="block text-sm text-slate-300 mb-1">Lesson</label>
+                <select class="w-full bg-slate-800 border border-slate-600 rounded-md px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" name="lesson_id">
+                  <option value="">— No lesson —</option>
+                  {% for l in lessons %}
+                    <option value="{{ l.id }}" {% if c.lesson_id == l.id %}selected{% endif %}>{{ l.title }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="flex gap-4 items-center">
+                <input class="w-32 bg-slate-800 border border-slate-600 rounded-md px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" name="points" type="number" min="0" value="{{ c.points }}" />
+                <label class="flex items-center gap-2 text-sm text-slate-300">
+                  <input type="checkbox" name="is_active" value="1" {% if c.is_active %}checked{% endif %} class="bg-slate-800 border-slate-600 rounded text-sky-500 focus:ring-sky-500"/>
+                  Active
+                </label>
+              </div>
+              <input class="w-full bg-slate-800 border border-slate-600 rounded-md px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" name="flag" placeholder="New flag (leave blank to keep)" />
+            </div>
+            <div class="flex flex-row md:flex-col gap-2 w-full md:w-auto">
+              <button class="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 px-3 rounded-md transition duration-300" type="submit">Save</button>
+              <button formmethod="POST" formaction="{{ url_for('admin_delete_challenge', challenge_id=c.id) }}" class="flex-1 md:flex-none bg-rose-600 hover:bg-rose-700 text-white font-semibold py-2 px-3 rounded-md transition duration-300" onclick="return confirm('Delete this challenge?')">Delete</button>
+            </div>
+          </form>
+        </div>
+        {% else %}
+          <p class="text-slate-400">No challenges yet.</p>
+        {% endfor %}
+      </div>
+    </section>
+  </div>
+</body>
+</html>

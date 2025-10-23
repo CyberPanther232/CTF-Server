@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CTF Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Code+Pro:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Custom styles to enhance the theme */
+        body {
+            font-family: 'Inter', sans-serif;
+            -ms-overflow-style: none; /* IE and Edge */
+            scrollbar-width: none; /* Firefox */
+        }
+        body::-webkit-scrollbar {
+            display: none; /* Chrome, Safari, and Opera */
+        }
+        .font-mono {
+            font-family: 'Source Code Pro', monospace;
+        }
+        .glass-effect {
+            background: rgba(23, 31, 46, 0.6);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .neon-glow {
+            box-shadow: 0 0 5px #0ea5e9, 0 0 10px #0ea5e9, 0 0 15px #0ea5e9;
+        }
+        .neon-text {
+            text-shadow: 0 0 5px rgba(14, 165, 233, 0.7), 0 0 10px rgba(14, 165, 233, 0.7);
+        }
+        .challenge-card:hover .challenge-points {
+            transform: scale(1.1);
+        }
+        .challenge-card .challenge-points {
+            transition: transform 0.3s ease;
+        }
+         /* Styles for the level accordion */
+        .level-summary {
+            position: relative;
+            list-style: none; /* Remove default marker */
+        }
+        .level-summary::-webkit-details-marker {
+            display: none; /* Hide for Safari */
+        }
+        .level-summary::after {
+            content: '+';
+            position: absolute;
+            right: 1.25rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.5rem;
+            color: #0ea5e9;
+            transition: transform 0.2s ease-in-out;
+        }
+        .level-details[open] > .level-summary::after {
+            transform: translateY(-50%) rotate(45deg);
+        }
+        
+        /* * ======================================
+        * NEW: UI/UX Transition Enhancements
+        * ======================================
+        */
+
+        /* Add transitions to all buttons, links, and cards */
+        .btn, .nav-link, .challenge-card, .level-summary, input, select, textarea {
+            transition-property: all;
+            transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+            transition-duration: 300ms;
+        }
+
+        /* Add a subtle "lift" to cards on hover */
+        .challenge-card:hover, 
+        .level-details:hover,
+        #leaderboard-body tr:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Make inputs glow more on focus */
+        input:focus, select:focus, textarea:focus {
+            box-shadow: 0 0 15px rgba(14, 165, 233, 0.5); /* A softer neon glow */
+        }
+
+        /* Make the neon glow on buttons more responsive */
+        .neon-glow:hover {
+            box-shadow: 0 0 10px #0ea5e9, 0 0 20px #0ea5e9, 0 0 30px #0ea5e9;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-200">
+
+    <div id="app" class="min-h-screen w-full">
+
+        <main id="login-page" class="page hidden min-h-screen flex items-center justify-center p-4">
+            <div class="w-full max-w-md">
+                <div class="text-center mb-8">
+                    <h1 class="text-4xl font-bold text-sky-400 neon-text font-mono">CTF_PLATFORM</h1>
+                    <p class="text-slate-400 mt-2">Login to start hacking</p>
+                </div>
+                <form action="/login" method="POST" class="glass-effect rounded-lg p-8 space-y-6">
+                    <div id="login-error-container"></div>
+                    <div>
+                        <label for="login-username" class="block text-sm font-medium text-slate-300 mb-1">Username</label>
+                        <input type="text" id="login-username" name="username" required class="w-full bg-slate-800 border border-slate-600 rounded-md px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500">
+                    </div>
+                    <div>
+                        <label for="login-password" class="block text-sm font-medium text-slate-300 mb-1">Password</label>
+                        <input type="password" id="login-password" name="password" required class="w-full bg-slate-800 border border-slate-600 rounded-md px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500">
+                    </div>
+                    <button type="submit" class="w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-2 px-4 rounded-md transition duration-300 neon-glow">
+                        Log In
+                    </button>
+                    <p class="text-center text-sm text-slate-400">
+                        Don't have an account? 
+                        <a href="#register" class="font-medium text-sky-400 hover:text-sky-300" onclick="navigate('register')">Register here</a>
+                    </p>
+                </form>
+
+                <!-- MFA step shown when mfa=required -->
+                <form id="mfa-login-form" action="/login/mfa" method="POST" class="glass-effect rounded-lg p-8 space-y-4 mt-4 hidden">
+                    <div class="text-center">
+                        <h2 class="text-xl font-semibold text-white">Authentication Required</h2>
+                        <p class="text-slate-400 text-sm mt-1">Enter the 6-digit code from your authenticator app.</p>
+                    </div>
+                    <div>
+                        <label for="mfa-login-token" class="block text-sm font-medium text-slate-300 mb-1">Authentication Code</label>
+                        <input type="text" id="mfa-login-token" name="token" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required class="w-full bg-slate-800 border border-slate-600 rounded-md px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" placeholder="123456">
+                    </div>
+                    <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md transition duration-300">Verify & Login</button>
+                </form>
+            </div>
+        </main>
+
+        <main id="register-page" class="page hidden min-h-screen flex items-center justify-center p-4">
+            <div class="w-full max-w-md">
+                <div class="text-center mb-8">
+                    <h1 class="text-4xl font-bold text-sky-400 neon-text font-mono">CREATE ACCOUNT</h1>
+                    <p class="text-slate-400 mt-2">Join the challenge</p>
+                </div>
+                <form action="/register" method="POST" class="glass-effect rounded-lg p-8 space-y-4">
+                    <div id="register-error-container"></div>
+                    <div>
+                        <label for="register-username" class="block text-sm font-medium text-slate-300 mb-1">Username</label>
+                        <input type="text" id="register-username" name="username" required class="w-full bg-slate-800 border border-slate-600 rounded-md px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500">
+                    </div>
+                    <div>
+                        <label for="register-password" class="block text-sm font-medium text-slate-300 mb-1">Password</label>
+                        <input type="password" id="register-password" name="password" required class="w-full bg-slate-800 border border-slate-600 rounded-md px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500">
+                    </div>
+                    <div>
+                        <label for="register-confirm-password" class="block text-sm font-medium text-slate-300 mb-1">Confirm Password</label>
+                        <input type="password" id="register-confirm-password" name="confirm_password" required class="w-full bg-slate-800 border border-slate-600 rounded-md px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500">
+                    </div>
+                    <div>
+                        <label for="register-secret" class="block text-sm font-medium text-slate-300 mb-1">Secret Code</label>
+                        <input type="text" id="register-secret" name="secret_code" required class="w-full bg-slate-800 border border-slate-600 rounded-md px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500">
+                    </div>
+
+                    <!-- MFA setup moved to profile after registration to ensure account context -->
+
+
+                    <button type="submit" class="w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-2 px-4 rounded-md transition duration-300 neon-glow !mt-6">
+                        Create Account
+                    </button>
+                    <p class="text-center text-sm text-slate-400 !mt-6">
+                        Already have an account? 
+                        <a href="#login" class="font-medium text-sky-400 hover:text-sky-300" onclick="navigate('login')">Login here</a>
+                    </p>
+                </form>
+            </div>
+        </main>
+        
+        <div id="app-container" class="hidden">
+            <header class="glass-effect sticky top-0 z-50">
+                <nav class="container mx-auto px-6 py-3 flex justify-between items-center">
+                    <a href="#index" onclick="navigate('index')" class="text-2xl font-bold text-sky-400 neon-text font-mono">CTF</a>
+                    <div class="flex items-center space-x-6">
+                        <a href="#index" onclick="navigate('index')" class="nav-link text-slate-300 hover:text-sky-400 transition">Challenges</a>
+                        <a href="#leaderboard" onclick="navigate('leaderboard')" class="nav-link text-slate-300 hover:text-sky-400 transition">Leaderboard</a>
+                        <a href="#profile" onclick="navigate('profile')" class="nav-link text-slate-300 hover:text-sky-400 transition">Profile</a>
+                        <a href="/admin" onclick="navigate('admin')" class="nav-link text-slate-300 hover:text-sky-400 transition hidden" id="admin-link">Admin</a>
+                        <a href="/logout" class="nav-link bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-md text-sm font-semibold transition">Logout</a>
+                    </div>
+                </nav>
+            </header>
+
+            <main id="index-page" class="page hidden p-6 container mx-auto">
+                <h1 class="text-3xl font-bold mb-6 text-slate-100">Challenges</h1>
+                <div class="space-y-4" id="levels-accordion">
+                    </div>
+            </main>
+
+            <main id="leaderboard-page" class="page hidden p-6 container mx-auto">
+                <h1 class="text-3xl font-bold mb-6 text-slate-100">Leaderboard</h1>
+                <div class="glass-effect rounded-lg overflow-hidden">
+                    <table class="w-full text-left">
+                        <thead class="bg-slate-800">
+                            <tr>
+                                <th class="p-4 font-semibold text-slate-300">Rank</th>
+                                <th class="p-4 font-semibold text-slate-300">Username</th>
+                                <th class="p-4 font-semibold text-slate-300">Score</th>
+                                <th class="p-4 font-semibold text-slate-300">Experience</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leaderboard-body" class="divide-y divide-slate-700">
+                        </tbody>
+                    </table>
+                </div>
+            </main>
+
+            <main id="profile-page" class="page hidden p-6 container mx-auto">
+                <h1 class="text-3xl font-bold mb-6 text-slate-100">User Profile</h1>
+                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="md:col-span-1 glass-effect rounded-lg p-6 flex flex-col items-center text-center">
+                        <div class="w-24 h-24 rounded-full bg-slate-700 mb-4 flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-sky-400"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                        </div>
+                        <h2 id="profile-username" class="text-2xl font-bold text-white"></h2>
+                        <div class="w-full mt-6 text-left">
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-sm text-slate-300">Score</span>
+                                <span id="profile-score" class="font-mono font-semibold text-sky-400"></span>
+                            </div>
+                             <div class="flex justify-between items-center">
+                                <span class="text-sm text-slate-300">Experience</span>
+                                <span id="profile-experience" class="font-mono font-semibold text-green-400"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- MFA Setup Card -->
+                    <div class="md:col-span-2 glass-effect rounded-lg p-6">
+                        <h3 class="text-xl font-bold mb-4 text-white">Multi-Factor Authentication</h3>
+                        <div id="profile-mfa-setup" class="space-y-4">
+                            <div id="profile-mfa-actions" class="space-x-3">
+                                <button id="profile-enable-mfa-btn" class="bg-sky-500 hover:bg-sky-600 text-white font-bold py-2 px-4 rounded-md transition">Enable MFA</button>
+                                <button id="profile-disable-mfa-btn" class="bg-slate-600 hover:bg-slate-700 text-white font-bold py-2 px-4 rounded-md transition hidden">Disable MFA</button>
+                                <span id="profile-mfa-status" class="text-slate-300 text-sm"></span>
+                            </div>
+                            <div id="profile-mfa-qr" class="hidden text-center">
+                                <p class="text-slate-400 text-sm mb-2">Scan this QR code in your authenticator app:</p>
+                                <img id="profile-mfa-qr-image" class="mx-auto mb-2 w-48 h-48 rounded-lg border border-slate-600">
+                                <p class="text-slate-400 text-sm">Or enter manually: <span id="profile-mfa-manual" class="font-mono text-sky-400"></span></p>
+                                <input id="profile-mfa-token" placeholder="Enter 6-digit code" class="mt-3 bg-slate-800 border border-slate-600 rounded-md px-3 py-2 text-white">
+                                <button id="profile-mfa-verify-btn" class="mt-3 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md transition">Verify MFA</button>
+                                <p id="profile-mfa-feedback" class="mt-2 text-sm text-center hidden"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="md:col-span-2 glass-effect rounded-lg p-6">
+                        <h3 class="text-xl font-bold mb-4 text-white">Solved Challenges</h3>
+                        <ul class="space-y-3" id="solved-challenges-list">
+                            </ul>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <div id="challenge-modal" class="page hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div id="modal-backdrop" class="fixed inset-0 bg-black/50 backdrop-blur-sm" onclick="closeModal()"></div>
+        
+        <div class="glass-effect rounded-lg w-full max-w-2xl z-10 p-6 relative">
+            
+            <button onclick="closeModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white transition">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+
+            <div class="flex justify-between items-start mb-2">
+                <div>
+                    <h2 id="modal-title" class="text-2xl font-bold text-white"></h2>
+                    <span id="modal-lesson" class="text-sm font-semibold text-sky-400"></span>
+                </div>
+                <span id="modal-points" class="challenge-points font-mono bg-slate-700 text-sky-300 text-lg font-bold px-4 py-1 rounded-full"></span>
+            </div>
+            
+            <p id="modal-description" class="text-slate-300 mt-4 mb-6"></p>
+
+            <form id="modal-form" action="#" method="POST">
+                <input type="hidden" id="modal-challenge-id" name="challenge_id">
+                
+                <label for="modal-flag-input" class="block text-sm font-medium text-slate-300 mb-1">Enter Flag</label>
+                <input
+                    type="text"
+                    id="modal-flag-input"
+                    name="flag"
+                    placeholder="CTF{...}"
+                    required
+                    class="w-full bg-slate-800 border border-slate-600 rounded-md px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                >
+                
+                <div id="modal-status-container" class="mt-3 text-sm h-5"></div> 
+
+                <button type="submit" class="mt-4 w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-2 px-4 rounded-md transition duration-300 neon-glow">
+                    Submit Flag
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // ===================================================================
+        // DYNAMIC LESSONS & CHALLENGES FROM BACKEND
+        // ===================================================================
+        async function fetchLessons() {
+            const resp = await fetch('/api/lessons');
+            if (!resp.ok) throw new Error('Failed to load lessons');
+            return await resp.json();
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const pages = document.querySelectorAll('.page');
+            const appContainer = document.getElementById('app-container');
+            const loginPage = document.getElementById('login-page');
+            const registerPage = document.getElementById('register-page');
+            const navLinks = document.querySelectorAll('.nav-link');
+            
+            let currentUser = null;
+
+            // --- ERROR HANDLING ---
+            function displayError(page, message) {
+                const container = document.getElementById(`${page}-error-container`);
+                if (container) {
+                    container.innerHTML = `<div class="bg-red-500/20 border border-red-500 text-red-300 text-sm rounded-md p-3 mb-4">${message}</div>`;
+                }
+            }
+
+            function checkForUrlErrors() {
+                const params = new URLSearchParams(window.location.search);
+                const error = params.get('error');
+                if (!error) return;
+
+                const hash = window.location.hash.substring(1);
+                if (hash.startsWith('login')) {
+                    if (error === 'invalid') displayError('login', 'Invalid username or password.');
+                } else if (hash.startsWith('register')) {
+                    if (error === 'exists') displayError('register', 'Username already taken.');
+                    if (error === 'secret') displayError('register', 'Invalid secret code.');
+                }
+                window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
+            }
+            
+            // --- NAVIGATION LOGIC ---
+            window.navigate = function(pageId) {
+                document.getElementById('login-error-container').innerHTML = '';
+                document.getElementById('register-error-container').innerHTML = '';
+                window.location.hash = pageId;
+            }
+
+            // --- DYNAMIC CONTENT RENDERING ---
+            async function renderChallenges() {
+                const accordionContainer = document.getElementById('levels-accordion');
+                if (!accordionContainer) return;
+                accordionContainer.innerHTML = '';
+
+                let lessons = [];
+                try {
+                    lessons = await fetchLessons();
+                } catch (e) {
+                    accordionContainer.innerHTML = `<div class="text-red-400">Error loading challenges.</div>`;
+                    console.error(e);
+                    return;
+                }
+
+                lessons.forEach((lesson, index) => {
+                    const challengeCardsHTML = lesson.challenges.map(chal => `
+                        <div class="challenge-card bg-slate-800/50 rounded-lg p-5 flex flex-col justify-between">
+                            <div>
+                                <div class="flex justify-between items-start mb-2">
+                                <span class="text-sm font-semibold text-sky-400">Challenge</span>
+                                <span class="challenge-points font-mono bg-slate-700 text-sky-300 text-sm font-bold px-3 py-1 rounded-full">${chal.points}</span>
+                                </div>
+
+                                <button
+                                    class="challenge-title text-lg font-bold text-slate-100 hover:text-sky-400 transition text-left"
+                                    onclick="openModal({
+                                        id: '${chal.id}',
+                                        title: '${chal.title.replace(/'/g, "\\'")}',
+                                        description: '${(chal.description || '').replace(/'/g, "\\'")}',
+                                        points: ${chal.points},
+                                        lesson: '${lesson.title.replace(/'/g, "\\'")}'
+                                    })"
+                                >
+                                    ${chal.title}
+                                </button>
+                                <p class="text-slate-400 mt-2 text-sm">${chal.description || ''}</p>
+                            </div>
+                        </div>
+                    `).join('');
+
+                    const lessonHTML = `
+                        <details class="level-details glass-effect rounded-lg" ${index === 0 ? 'open' : ''}>
+                            <summary class="level-summary p-5 cursor-pointer flex justify-between items-center">
+                                <h2 class="text-xl font-bold text-slate-100">${lesson.title}</h2>
+                                <span class="text-sm font-mono text-slate-400">${lesson.challenges.length} Challenges</span>
+                            </summary>
+                            <div class="p-6 border-t border-slate-700">
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                                    ${challengeCardsHTML}
+                                </div>
+                            </div>
+                        </details>
+                    `;
+                    accordionContainer.innerHTML += lessonHTML;
+                });
+                
+                addAccordionLogic();
+                // We no longer call attachFlagSubmitHandlers() here
+            }
+
+            function addAccordionLogic() {
+                const details = document.querySelectorAll('.level-details');
+                details.forEach(detail => {
+                    detail.addEventListener('toggle', (event) => {
+                        if (detail.open) {
+                            details.forEach(otherDetail => {
+                                if (otherDetail !== detail) otherDetail.removeAttribute('open');
+                            });
+                        }
+                    });
+                });
+            }
+
+            // --- MODAL LOGIC ---
+            const modal = document.getElementById('challenge-modal');
+            const modalForm = document.getElementById('modal-form');
+            const modalStatus = document.getElementById('modal-status-container');
+
+            window.openModal = function(challenge) {
+                document.getElementById('modal-title').textContent = challenge.title;
+                document.getElementById('modal-lesson').textContent = challenge.lesson;
+                document.getElementById('modal-points').textContent = challenge.points;
+                document.getElementById('modal-description').textContent = challenge.description;
+                document.getElementById('modal-challenge-id').value = challenge.id;
+                document.getElementById('modal-flag-input').value = ''; // Clear old flag
+                modalStatus.innerHTML = ''; // Clear old status
+                modal.classList.remove('hidden');
+            }
+
+            window.closeModal = function() {
+                modal.classList.add('hidden');
+            }
+
+            // Attach the flag submit handler to the *single* modal form
+            modalForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const chalId = document.getElementById('modal-challenge-id').value;
+                const flag = document.getElementById('modal-flag-input').value.trim();
+
+                if (!flag) {
+                    modalStatus.textContent = 'Please enter a flag.';
+                    modalStatus.className = 'mt-3 text-sm text-amber-300';
+                    return;
+                }
+                
+                modalStatus.textContent = 'Submitting...';
+                modalStatus.className = 'mt-3 text-sm text-slate-300';
+                
+                try {
+                    const submitResp = await fetch(`/api/challenges/${chalId}/submit`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ flag })
+                    });
+
+                    const data = await submitResp.json().catch(() => ({}));
+                    if (!submitResp.ok) {
+                        modalStatus.textContent = data?.error || 'Submission failed.';
+                        modalStatus.className = 'mt-3 text-sm text-red-400';
+                        return;
+                    }
+
+                    if (data.correct) {
+                        modalStatus.textContent = `Correct! +${data.points ?? ''} points`;
+                        modalStatus.className = 'mt-3 text-sm text-green-400';
+                        document.getElementById('modal-flag-input').value = ''; // Clear on success
+                        // Auto-close the modal after 2 seconds
+                        setTimeout(closeModal, 2000);
+                        // TODO: Refresh profile score in background
+                    } else {
+                        modalStatus.textContent = 'Incorrect flag. Try again.';
+                        modalStatus.className = 'mt-3 text-sm text-red-400';
+                    }
+                } catch (err) {
+                    console.error('Flag submit error', err);
+                    modalStatus.textContent = 'Network error submitting flag.';
+                    modalStatus.className = 'mt-3 text-sm text-red-400';
+                }
+            });
+            // The old attachFlagSubmitHandlers function is no longer needed
+
+            // --- AUTH & ROUTING ---
+            async function handleRouting() {
+                const pageId = window.location.hash.substring(1) || 'index';
+                
+                if (!currentUser && pageId !== 'login' && pageId !== 'register') {
+                    navigate('login');
+                    return;
+                }
+
+                pages.forEach(p => p.classList.add('hidden'));
+
+                const showAuthPages = pageId === 'login' || pageId === 'register';
+                appContainer.classList.toggle('hidden', showAuthPages);
+                // Use 'display' for flex containers
+                loginPage.style.display = showAuthPages && pageId === 'login' ? 'flex' : 'none';
+                registerPage.style.display = showAuthPages && pageId === 'register' ? 'flex' : 'none';
+
+
+                if (!showAuthPages) {
+                    const targetPage = document.getElementById(pageId + '-page');
+                    if (targetPage) {
+                        targetPage.classList.remove('hidden');
+                    }
+                }
+                
+                navLinks.forEach(link => {
+                    const isActive = link.getAttribute('href') === `#${pageId}`;
+                    link.classList.toggle('text-sky-400', isActive);
+                    link.classList.toggle('text-slate-300', !isActive);
+                });
+
+                if (pageId === 'index') renderChallenges();
+                if (pageId === 'leaderboard') await fetchLeaderboardData();
+                if (pageId === 'profile') await populateProfileData();
+                
+                checkForUrlErrors();
+            }
+            
+            function setupMFA() {
+                // Profile-based MFA setup controls
+                const enableBtn = document.getElementById('profile-enable-mfa-btn');
+                const disableBtn = document.getElementById('profile-disable-mfa-btn');
+                const statusEl = document.getElementById('profile-mfa-status');
+                const qrWrap = document.getElementById('profile-mfa-qr');
+                const qrImg = document.getElementById('profile-mfa-qr-image');
+                const manualEl = document.getElementById('profile-mfa-manual');
+                const tokenInput = document.getElementById('profile-mfa-token');
+                const verifyBtn = document.getElementById('profile-mfa-verify-btn');
+                const feedback = document.getElementById('profile-mfa-feedback');
+
+                if (!(enableBtn && disableBtn)) return; // Not on profile page
+
+                function reflectState() {
+                    if (currentUser?.mfaEnabled) {
+                        statusEl.textContent = 'MFA is enabled.';
+                        enableBtn.classList.add('hidden');
+                        disableBtn.classList.remove('hidden');
+                        qrWrap.classList.add('hidden');
+                    } else {
+                        statusEl.textContent = 'MFA is disabled.';
+                        enableBtn.classList.remove('hidden');
+                        disableBtn.classList.add('hidden');
+                    }
+                }
+
+                reflectState();
+
+                enableBtn.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    enableBtn.disabled = true;
+                    enableBtn.textContent = 'Generating...';
+                    feedback.classList.add('hidden');
+                    try {
+                        const resp = await fetch('/api/mfa/setup');
+                        const data = await resp.json();
+                        if (!resp.ok || !data.ok) throw new Error(data.error || 'Setup failed');
+                        qrImg.src = data.qrDataUrl || '';
+                        manualEl.textContent = data.secret || '';
+                        qrWrap.classList.remove('hidden');
+                    } catch (err) {
+                        console.error('MFA setup error', err);
+                        feedback.textContent = 'Error setting up MFA.';
+                        feedback.className = 'mt-2 text-sm text-red-400';
+                        feedback.classList.remove('hidden');
+                    } finally {
+                        enableBtn.disabled = false;
+                        enableBtn.textContent = 'Enable MFA';
+                    }
+                });
+
+                verifyBtn.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    const token = tokenInput.value.trim();
+                    if (!token) return;
+                    verifyBtn.disabled = true;
+                    verifyBtn.textContent = 'Verifying...';
+                    try {
+                        const resp = await fetch('/api/mfa/verify', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ token })
+                        });
+                        const data = await resp.json();
+                        if (!resp.ok || !data.ok) throw new Error(data.error || 'Verify failed');
+                        if (data.verified) {
+                            feedback.textContent = 'MFA enabled successfully!';
+                            feedback.className = 'mt-2 text-sm text-green-400';
+                            currentUser.mfaEnabled = true;
+                            reflectState();
+                        } else {
+                            feedback.textContent = 'Invalid token. Please try again.';
+                            feedback.className = 'mt-2 text-sm text-red-400';
+                        }
+                    } catch (err) {
+                        console.error('MFA verify error', err);
+                        feedback.textContent = 'Error verifying MFA.';
+                        feedback.className = 'mt-2 text-sm text-red-400';
+                    } finally {
+                        verifyBtn.disabled = false;
+                        verifyBtn.textContent = 'Verify MFA';
+                    }
+                });
+
+                disableBtn.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    disableBtn.disabled = true;
+                    try {
+                        const resp = await fetch('/api/mfa/disable', { method: 'POST' });
+                        const data = await resp.json();
+                        if (!resp.ok || !data.ok) throw new Error(data.error || 'Disable failed');
+                        currentUser.mfaEnabled = false;
+                        reflectState();
+                        feedback.textContent = 'MFA disabled.';
+                        feedback.className = 'mt-2 text-sm text-slate-300';
+                        feedback.classList.remove('hidden');
+                    } catch (err) {
+                        console.error('MFA disable error', err);
+                    } finally {
+                        disableBtn.disabled = false;
+                    }
+                });
+            }
+
+            function updateNavbar() {
+                const adminLink = document.getElementById('admin-link');
+                if (currentUser && currentUser.isAdmin) {
+                    adminLink.classList.remove('hidden');
+                } else {
+                    adminLink.classList.add('hidden');
+                }
+            }
+
+            async function checkLoginStatus() {
+                try {
+                    const response = await fetch('/api/status');
+                    const data = await response.json();
+                    currentUser = data.loggedIn ? data : null;
+                } catch (error) {
+                    console.error("Error checking login status:", error);
+                    currentUser = null;
+                }
+                // Toggle MFA login form if required
+                const params = new URLSearchParams(window.location.search);
+                const mfaRequired = params.get('mfa') === 'required';
+                const mfaForm = document.getElementById('mfa-login-form');
+                if (mfaForm) {
+                    mfaForm.classList.toggle('hidden', !mfaRequired);
+                }
+
+                updateNavbar();
+                await handleRouting();
+            }
+
+            async function populateProfileData() {
+                if (!currentUser) return;
+                document.getElementById('profile-username').textContent = currentUser.username;
+                document.getElementById('profile-score').textContent = currentUser.score;
+                document.getElementById('profile-experience').textContent = currentUser.experience;
+
+                // Load solved challenges
+                const list = document.getElementById('solved-challenges-list');
+                if (!list) return;
+                list.innerHTML = '<li class="text-slate-400">Loading solved challenges...</li>';
+                try {
+                        const resp = await fetch('/api/me/solves');
+                        if (!resp.ok) throw new Error('Failed to fetch solves');
+                        const solves = await resp.json();
+                        if (!Array.isArray(solves) || solves.length === 0) {
+                                list.innerHTML = '<li class="text-slate-400">No solves yet. Tackle some challenges!</li>';
+                                return;
+                        }
+                        list.innerHTML = '';
+                        solves.forEach((s) => {
+                                const li = document.createElement('li');
+                                li.className = 'flex items-center justify-between bg-slate-800/50 rounded-md px-4 py-3';
+                                const dateStr = new Date(s.solvedAt).toLocaleString();
+                                li.innerHTML = `
+                                    <div>
+                                        <div class="font-semibold text-white">${s.title}</div>
+                                        <div class="text-xs text-slate-400">Solved ${dateStr}</div>
+                                    </div>
+                                    <div class="font-mono text-sky-400">+${s.points}</div>
+                                `;
+                                list.appendChild(li);
+                        });
+                } catch (e) {
+                        console.error('Profile solves error', e);
+                        list.innerHTML = '<li class="text-red-400">Error loading solved challenges.</li>';
+                }
+            }
+
+            window.addEventListener('hashchange', handleRouting);
+
+            // --- INITIALIZATION ---
+            await checkLoginStatus();
+            // Initialize MFA handlers for profile page
+            setupMFA();
+        });
+
+        async function fetchLeaderboardData() {
+            const leaderboardBody = document.getElementById('leaderboard-body');
+            leaderboardBody.innerHTML = `<tr class="animate-pulse"><td class="p-4"><div class="h-4 bg-slate-700 rounded w-1/4"></div></td><td class="p-4"><div class="h-4 bg-slate-700 rounded w-1/2"></div></td><td class="p-4"><div class="h-4 bg-slate-700 rounded w-1/4"></div></td><td class="p-4"><div class="h-4 bg-slate-700 rounded w-1/4"></div></td></tr>`;
+            try {
+                const response = await fetch('/api/users');
+                if (!response.ok) throw new Error('Network response was not ok');
+                const users = await response.json();
+                users.sort((a, b) => b.score - a.score);
+                leaderboardBody.innerHTML = '';
+                if (users.length === 0) {
+                    leaderboardBody.innerHTML = '<tr><td colspan="4" class="text-center p-4 text-slate-400">No users found.</td></tr>';
+                    return;
+                }
+                users.forEach((user, index) => {
+                    const row = document.createElement('tr');
+                    row.className = "hover:bg-slate-800 transition";
+                    row.innerHTML = `<td class="p-4 font-mono">${index + 1}</td><td class="p-4 font-semibold text-slate-100">${user.username}</td><td class="p-4 font-mono text-sky-400">${user.score}</td><td class="p-4 font-mono text-green-400">${user.experience}</td>`;
+                    leaderboardBody.appendChild(row);
+                });
+            } catch (error) {
+                console.error("Could not fetch leaderboard data:", error);
+                leaderboardBody.innerHTML = `<tr><td colspan="4" class="text-center p-4 text-red-400">Error loading leaderboard.</td></tr>`;
+            }
+        }
+    </script>
+</body>
+</html>
