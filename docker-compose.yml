@@ -1,0 +1,21 @@
+version: "3.9"
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # Load secrets and config from a local env file (not committed)
+    env_file:
+      - app.env
+    environment:
+      # These provide defaults if not set in app.env
+      SQLALCHEMY_DATABASE_URI: ${SQLALCHEMY_DATABASE_URI:-sqlite:////app/data/prod_database.db}
+      DEVELOPMENT_MODE: ${DEVELOPMENT_MODE:-False}
+    ports:
+      - "443:5000"  # host:container
+    volumes:
+      - ./app/data:/app/data  # persist SQLite DB locally
+    restart: unless-stopped
+    # Ensure we run the package entrypoint
+    command: ["python3", "-m", "app"]
