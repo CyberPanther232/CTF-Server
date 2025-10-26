@@ -1,36 +1,36 @@
 services:
-  web:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    # Load secrets and config from a local env file (not committed)
-    env_file:
-      - app.env
-    environment:
-      # These provide defaults if not set in app.env
-      SQLALCHEMY_DATABASE_URI: ${SQLALCHEMY_DATABASE_URI:-sqlite:////app/data/prod_database.db}
-      DEVELOPMENT_MODE: ${DEVELOPMENT_MODE:-False}
-      TRUST_PROXY: ${TRUST_PROXY:-1}
-      PREFERRED_URL_SCHEME: ${PREFERRED_URL_SCHEME:-https}
-    expose:
-      - "5000"
-    volumes:
-      - ./app/data:/app/data  # persist SQLite DB locally
-    restart: unless-stopped
-    # Ensure we run the package entrypoint
-    command: ["python3", "-m", "app"]
+ web:
+  build:
+   context: .
+   dockerfile: Dockerfile
+  # Load secrets and config from a local env file (not committed)
+  env_file:
+   - app.env
+  environment:
+   # These provide defaults if not set in app.env
+   SQLALCHEMY_DATABASE_URI: ${SQLALCHEMY_DATABASE_URI:-sqlite:////app/data/prod_database.db}
+   DEVELOPMENT_MODE: ${DEVELOPMENT_MODE:-False}
+   TRUST_PROXY: ${TRUST_PROXY:-1}
+   PREFERRED_URL_SCHEME: ${PREFERRED_URL_SCHEME:-https}
+  expose:
+   - "5000"
+  volumes:
+   - ./app/data:/app/data # persist SQLite DB locally
+  restart: unless-stopped
+  # Ensure we run the package entrypoint
+  command: ["python3", "-m", "app"]
 
-  nginx:
-    image: nginx:stable-alpine
-    depends_on:
-      - web
-    ports:
+ nginx:
+  image: nginx:stable-alpine
+  depends_on:
+   - web
+  ports:
       # Keep port 80 for HTTP -> HTTPS redirect
-      - "80:80"
+   - "80:80"
       # Add port 443 for SSL
-      - "443:443"
-    volumes:
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+   - "443:443"
+  volumes:
+   - ./nginx/conf.d:/etc/nginx/conf.d:ro
       # Add this line to mount your new SSL certs
-      - ./nginx/ssl:/etc/nginx/ssl:ro
-    restart: unless-stopped
+   - ./nginx/ssl:/etc/nginx/ssl:ro
+  restart: unless-stopped
