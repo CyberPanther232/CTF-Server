@@ -2,7 +2,6 @@ services:
  flask_app:
   build:
    context: .
-   dockerfile: dockerfile
   container_name: flask_app
   expose:
    - "5000"
