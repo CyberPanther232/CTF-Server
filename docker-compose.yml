@@ -3,6 +3,8 @@ services:
   build:
    context: .
   container_name: flask_app
+  env_file:
+   - app.env
   expose:
    - "5000"
   networks:
