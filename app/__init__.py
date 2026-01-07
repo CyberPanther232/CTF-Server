@@ -21,6 +21,7 @@ app.config['REGISTRATION_SECRET_CODE'] = os.environ.get('REGISTRATION_SECRET_COD
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your_secret_key')  # Change in production
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = _env_bool('SQLALCHEMY_TRACK_MODIFICATIONS', False)
 app.config['ADMIN_CODE'] = os.environ.get('ADMIN_CODE', 'admin_secret_code')  # Change in production
+app.config['FLAG_MAX_ATTEMPTS_PER_MINUTE'] = int(os.environ.get('FLAG_MAX_ATTEMPTS_PER_MINUTE', '5'))
 
 # Recommended when running behind Cloudflare/any reverse proxy
 app.config['PREFERRED_URL_SCHEME'] = os.environ.get('PREFERRED_URL_SCHEME', 'https')
@@ -62,7 +63,7 @@ def _unauth():
     return redirect(url_for("index") + "#login")
 
 # Import models and routes after extensions
-from .database import User, Challenge, init_db
+from .database import User, init_db
 
 @login_manager.user_loader
 def load_user(user_id: str):
