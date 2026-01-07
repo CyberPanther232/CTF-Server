@@ -17,6 +17,7 @@ class User(db.Model, UserMixin):
     password_hash = db.Column(db.String(255), nullable=False)
     score = db.Column(db.Integer, nullable=False, default=0)
     is_admin = db.Column(db.Boolean, nullable=False, default=False)
+    team_id = db.Column(db.Integer, db.ForeignKey("teams.id"), nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     
     # MFA / TOTP Secret 
@@ -27,7 +28,7 @@ class User(db.Model, UserMixin):
 
     def check_password(self, password: str) -> bool:
         return bcrypt.check_password_hash(self.password_hash, password)
-
+    
 class Lesson(db.Model):
     __tablename__ = "lessons"
     id = db.Column(db.Integer, primary_key=True)
@@ -56,6 +57,17 @@ class Challenge(db.Model):
     def verify_flag(self, submitted: str) -> bool:
         return bcrypt.check_password_hash(self.flag_hash, submitted)
 
+class ChallengeSecret(db.Model):
+    __tablename__ = "challenge_secrets"
+    id = db.Column(db.Integer, primary_key=True)
+    challenge_id = db.Column(db.Integer, db.ForeignKey("challenges.id"), nullable=False, unique=True, index=True)
+    flag_plain = db.Column(db.String(255), nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    challenge = db.relationship(
+        "Challenge",
+        backref=db.backref("secret", uselist=False, cascade="all, delete-orphan")
+    )
+
 class Submission(db.Model):
     __tablename__ = "submissions"
     id = db.Column(db.Integer, primary_key=True)
@@ -71,6 +83,44 @@ class MfaSetting(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, unique=True, index=True)
     secret = db.Column(db.String(64), nullable=True)
     enabled = db.Column(db.Boolean, nullable=False, default=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+class AttemptLog(db.Model):
+    __tablename__ = "attempt_logs"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    challenge_id = db.Column(db.Integer, db.ForeignKey("challenges.id"), nullable=False, index=True)
+    ip = db.Column(db.String(45), nullable=True)
+    success = db.Column(db.Boolean, nullable=False, default=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+
+# --- Teams ---
+class Team(db.Model):
+    __tablename__ = "teams"
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(128), unique=True, nullable=False, index=True)
+    password_hash = db.Column(db.String(255), nullable=False)
+    leader_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    memberships = db.relationship(
+        "TeamMembership",
+        backref="team",
+        lazy=True,
+        cascade="all, delete-orphan",
+    )
+
+    def set_password(self, password: str):
+        self.password_hash = bcrypt.generate_password_hash(password).decode("utf-8")
+
+    def check_password(self, password: str) -> bool:
+        return bcrypt.check_password_hash(self.password_hash, password)
+
+class TeamMembership(db.Model):
+    __tablename__ = "team_memberships"
+    id = db.Column(db.Integer, primary_key=True)
+    team_id = db.Column(db.Integer, db.ForeignKey("teams.id"), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, unique=True, index=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
 # Utility: create or update a challenge and set its flag
