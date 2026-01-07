@@ -1,12 +1,15 @@
-from flask import render_template, request, jsonify, redirect, url_for, abort, session
+from flask import render_template, request, jsonify, redirect, url_for, abort, session, send_file
 from flask_login import login_user, logout_user, login_required, current_user
 from sqlalchemy import asc
 from app import app, db
-from app.database import User, Challenge, Lesson, Submission, MfaSetting
+from app.database import User, Challenge, Lesson, Submission, MfaSetting, ChallengeSecret, AttemptLog, Team, TeamMembership
+from datetime import datetime, timedelta
 import typing as _t
 import pyotp
 import qrcode
 import io
+import os
+from werkzeug.utils import secure_filename
 
 
 def admin_required():
@@ -145,19 +148,34 @@ def api_lessons():
 @app.get("/api/status")
 def api_status():
     score_val = int(getattr(current_user, "score", 0) or 0) if current_user.is_authenticated else 0
-    # Derive a simple experience metric from score (can be adjusted later)
-    experience_val = score_val  # keep 1:1 for now
+    # Challenges completed count
+    completed_val = 0
+    if current_user.is_authenticated:
+        try:
+            completed_val = db.session.query(Submission).filter_by(user_id=current_user.id).count()
+        except Exception:
+            completed_val = 0
     mfa_enabled = False
     if current_user.is_authenticated:
         mfa_row = MfaSetting.query.filter_by(user_id=current_user.id, enabled=True).first()
         mfa_enabled = bool(mfa_row is not None)
+    # Determine avatar URL if available
+    def _avatar_url_for(user_id: int) -> _t.Optional[str]:
+        base_dir = os.path.join(app.root_path, 'data', 'profile_images')
+        for ext in ("png", "jpg", "jpeg"):
+            p = os.path.join(base_dir, f"{user_id}.{ext}")
+            if os.path.exists(p):
+                return f"/profile_images/{user_id}"
+        return None
+
     return jsonify({
         "loggedIn": current_user.is_authenticated,
         "username": getattr(current_user, "username", None) if current_user.is_authenticated else None,
         "score": score_val,
-        "experience": experience_val,
+        "completed": completed_val,
         "isAdmin": getattr(current_user, "is_admin", False) if current_user.is_authenticated else False,
         "mfaEnabled": mfa_enabled,
+        "avatarUrl": _avatar_url_for(current_user.id) if current_user.is_authenticated else None,
     })
 
 # --- API: submit flag (by challenge id) ---
@@ -165,13 +183,47 @@ def api_status():
 @login_required
 def api_submit_flag(challenge_id: int):
     data = request.get_json(silent=True) or request.form or {}
+    # --- Brute-force guard ---
+    def _client_ip() -> str:
+        # Rely on ProxyFix having applied correct headers when behind proxy
+        return request.headers.get('X-Forwarded-For', request.remote_addr or '')
+
+    def _blocked_and_retry_after(user_id: int, chal_id: int) -> tuple[bool, int]:
+        window_seconds = int(app.config.get('FLAG_MAX_ATTEMPTS_WINDOW_SECONDS', 60))
+        max_attempts = int(app.config.get('FLAG_MAX_ATTEMPTS_PER_MINUTE', 5))
+        since = datetime.utcnow() - timedelta(seconds=window_seconds)
+        q = AttemptLog.query.filter(
+            AttemptLog.user_id == user_id,
+            AttemptLog.challenge_id == chal_id,
+            AttemptLog.success.is_(False),
+            AttemptLog.created_at >= since,
+        )
+        count = q.count()
+        if count >= max_attempts:
+            oldest = q.order_by(AttemptLog.created_at.asc()).first()
+            retry_after = max(1, window_seconds - int((datetime.utcnow() - oldest.created_at).total_seconds())) if oldest else window_seconds
+            return True, retry_after
+        return False, 0
+
+    blocked, retry_after = _blocked_and_retry_after(current_user.id, challenge_id)
+    if blocked:
+        return jsonify({
+            "ok": False,
+            "error": "Too many attempts. Please wait before trying again.",
+            "retryAfter": retry_after,
+        }), 429
     flag = (data.get("flag") or "").strip()
     if not flag:
         return jsonify({"ok": False, "error": "Missing flag"}), 400
     chal = Challenge.query.get_or_404(challenge_id)
     if not chal.is_active:
         return jsonify({"ok": False, "error": "Challenge not active"}), 400
-    if not chal.verify_flag(flag):
+    # Verify flag
+    correct = chal.verify_flag(flag)
+    # Log attempt regardless of outcome
+    db.session.add(AttemptLog(user_id=current_user.id, challenge_id=chal.id, ip=_client_ip(), success=bool(correct)))
+    db.session.commit()
+    if not correct:
         return jsonify({"ok": True, "correct": False}), 200
 
     # Check if already solved to avoid double-scoring
@@ -197,14 +249,28 @@ def api_submit_flag(challenge_id: int):
 def api_users():
     users = User.query.order_by(User.score.desc(), User.created_at.asc()).all()
     payload = []
+    def _avatar_url_for(user_id: int) -> _t.Optional[str]:
+        base_dir = os.path.join(app.root_path, 'data', 'profile_images')
+        for ext in ("png", "jpg", "jpeg"):
+            p = os.path.join(base_dir, f"{user_id}.{ext}")
+            if os.path.exists(p):
+                return f"/profile_images/{user_id}"
+        return None
+
     for u in users:
         score_val = int(u.score or 0)
+        try:
+            completed_val = db.session.query(Submission).filter_by(user_id=u.id).count()
+        except Exception:
+            completed_val = 0
         mfa_row = MfaSetting.query.filter_by(user_id=u.id, enabled=True).first()
         payload.append({
+            "id": u.id,
             "username": u.username,
             "score": score_val,
-            "experience": score_val,  # derived for now
+            "completed": completed_val,
             "mfaEnabled": bool(mfa_row is not None),
+            "avatarUrl": _avatar_url_for(u.id),
         })
     return jsonify(payload)
 
@@ -361,7 +427,62 @@ def admin_page():
     admin_required()
     challenges = Challenge.query.order_by(asc(Challenge.id)).all()
     lessons = Lesson.query.order_by(asc(Lesson.id)).all()
-    return render_template("admin.html", challenges=challenges, lessons=lessons)
+    teams = Team.query.order_by(asc(Team.name)).all()
+    users = User.query.order_by(asc(User.username)).all()
+    return render_template("admin.html", challenges=challenges, lessons=lessons, teams=teams, users=users)
+
+# --- Profile Images: upload and serve ---
+@app.post("/api/me/profile-image")
+@login_required
+def api_upload_profile_image():
+    # Accept only PNG/JPEG, store as user_id.ext in app/data/profile_images
+    file = request.files.get('image')
+    if not file:
+        return jsonify({"ok": False, "error": "No file uploaded"}), 400
+    content_type = (file.content_type or '').lower()
+    filename = secure_filename(file.filename or '')
+    ext = os.path.splitext(filename)[1].lower()
+    allowed = {'.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg'}
+    if ext not in allowed or allowed[ext] != content_type:
+        # Attempt to infer by content_type if extension missing/mismatch
+        if content_type == 'image/png':
+            ext = '.png'
+        elif content_type == 'image/jpeg':
+            ext = '.jpg'
+        else:
+            return jsonify({"ok": False, "error": "Only PNG and JPG images are allowed"}), 400
+    # Basic magic header validation
+    head = file.stream.read(4)
+    file.stream.seek(0)
+    if ext == '.png' and head != b'\x89PNG':
+        return jsonify({"ok": False, "error": "Invalid PNG file"}), 400
+    if ext in ('.jpg', '.jpeg') and not head.startswith(b'\xff\xd8'):
+        return jsonify({"ok": False, "error": "Invalid JPG file"}), 400
+    base_dir = os.path.join(app.root_path, 'data', 'profile_images')
+    os.makedirs(base_dir, exist_ok=True)
+    # Remove any existing image for this user with other extensions
+    for e in ('.png', '.jpg', '.jpeg'):
+        p = os.path.join(base_dir, f"{current_user.id}{e}")
+        try:
+            if os.path.exists(p): os.remove(p)
+        except Exception:
+            pass
+    save_path = os.path.join(base_dir, f"{current_user.id}{ext}")
+    try:
+        file.save(save_path)
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"Failed to save image: {e}"}), 500
+    return jsonify({"ok": True, "avatarUrl": f"/profile_images/{current_user.id}"})
+
+@app.get('/profile_images/<int:user_id>')
+def serve_profile_image(user_id: int):
+    base_dir = os.path.join(app.root_path, 'data', 'profile_images')
+    for ext in ('.png', '.jpg', '.jpeg'):
+        p = os.path.join(base_dir, f"{user_id}{ext}")
+        if os.path.exists(p):
+            # Let client cache bust via query param if needed
+            return send_file(p)
+    abort(404)
 
 # --- Admin: create challenge ---
 @app.post("/admin/challenges")
@@ -387,6 +508,8 @@ def admin_create_challenge():
     chal = Challenge(title=title, description=description, points=points, is_active=True, lesson_id=lesson_id)
     chal.set_flag(flag)
     db.session.add(chal)
+    # Persist plaintext flag for admin in separate table
+    chal.secret = ChallengeSecret(flag_plain=flag)
     db.session.commit()
     return redirect(url_for("admin_page"))
 
@@ -416,6 +539,11 @@ def admin_update_challenge(challenge_id: int):
     new_flag = (data.get("flag") or "").strip()
     if new_flag:
         chal.set_flag(new_flag)
+        # Update or create plaintext secret
+        if chal.secret:
+            chal.secret.flag_plain = new_flag
+        else:
+            chal.secret = ChallengeSecret(flag_plain=new_flag)
     db.session.commit()
     return redirect(url_for("admin_page"))
 
@@ -466,3 +594,114 @@ def admin_delete_challenge(challenge_id: int):
     db.session.delete(chal)
     db.session.commit()
     return redirect(url_for("admin_page"))
+
+# --- Admin: Teams CRUD ---
+@app.post("/admin/teams")
+@login_required
+def admin_create_team():
+    admin_required()
+    data = request.form or request.get_json(silent=True) or {}
+    name = (data.get("name") or "").strip()
+    password = (data.get("password") or "").strip()
+    if not name or not password:
+        return redirect(url_for("admin_page"))
+    if Team.query.filter_by(name=name).first():
+        return redirect(url_for("admin_page"))
+    t = Team(name=name)
+    t.set_password(password)
+    db.session.add(t)
+    db.session.commit()
+    return redirect(url_for("admin_page"))
+
+@app.post("/admin/teams/<int:team_id>/leader")
+@login_required
+def admin_set_team_leader(team_id: int):
+    admin_required()
+    data = request.form or request.get_json(silent=True) or {}
+    user_id_val = data.get("leader_user_id")
+    t = Team.query.get_or_404(team_id)
+    new_leader = None
+    try:
+        if user_id_val not in (None, "", "none"):
+            new_leader = User.query.get(int(user_id_val))
+    except Exception:
+        new_leader = None
+    t.leader_user_id = new_leader.id if new_leader else None
+    # Ensure leader is a member
+    if new_leader:
+        mem = TeamMembership.query.filter_by(user_id=new_leader.id).first()
+        if not mem:
+            db.session.add(TeamMembership(team_id=t.id, user_id=new_leader.id))
+        else:
+            mem.team_id = t.id
+    db.session.commit()
+    return redirect(url_for("admin_page"))
+
+@app.post("/admin/teams/<int:team_id>/delete")
+@login_required
+def admin_delete_team(team_id: int):
+    admin_required()
+    t = Team.query.get_or_404(team_id)
+    db.session.delete(t)
+    db.session.commit()
+    return redirect(url_for("admin_page"))
+
+# --- API: Teams ---
+@app.get("/api/teams")
+@login_required
+def api_teams():
+    teams = Team.query.order_by(asc(Team.name)).all()
+    payload = []
+    for t in teams:
+        leader = User.query.get(t.leader_user_id) if t.leader_user_id else None
+        member_count = TeamMembership.query.filter_by(team_id=t.id).count()
+        payload.append({
+            "id": t.id,
+            "name": t.name,
+            "leaderUsername": leader.username if leader else None,
+            "memberCount": member_count,
+        })
+    # Mark current user's team
+    my_membership = TeamMembership.query.filter_by(user_id=current_user.id).first()
+    return jsonify({
+        "teams": payload,
+        "myTeamId": my_membership.team_id if my_membership else None,
+    })
+
+@app.post("/api/teams/<int:team_id>/join")
+@login_required
+def api_join_team(team_id: int):
+    data = request.get_json(silent=True) or request.form or {}
+    password = (data.get("password") or "").strip()
+    t = Team.query.get_or_404(team_id)
+    if not password or not t.check_password(password):
+        return jsonify({"ok": False, "error": "Invalid team password"}), 400
+    existing = TeamMembership.query.filter_by(user_id=current_user.id).first()
+    if existing and existing.team_id == t.id:
+        return jsonify({"ok": True, "joined": True, "already": True}), 200
+    if existing:
+        return jsonify({"ok": False, "error": "Already in a team"}), 400
+    db.session.add(TeamMembership(team_id=t.id, user_id=current_user.id))
+    db.session.commit()
+    return jsonify({"ok": True, "joined": True, "teamId": t.id}), 200
+
+@app.post("/api/teams")
+@login_required
+def api_create_team():
+    data = request.get_json(silent=True) or request.form or {}
+    name = (data.get("name") or "").strip()
+    password = (data.get("password") or "").strip()
+    if not name or not password:
+        return jsonify({"ok": False, "error": "Missing name or password"}), 400
+    if Team.query.filter_by(name=name).first():
+        return jsonify({"ok": False, "error": "Team name already exists"}), 400
+    existing = TeamMembership.query.filter_by(user_id=current_user.id).first()
+    if existing:
+        return jsonify({"ok": False, "error": "Leave your current team first"}), 400
+    t = Team(name=name, leader_user_id=current_user.id)
+    t.set_password(password)
+    db.session.add(t)
+    db.session.flush()
+    db.session.add(TeamMembership(team_id=t.id, user_id=current_user.id))
+    db.session.commit()
+    return jsonify({"ok": True, "created": True, "teamId": t.id}), 200
