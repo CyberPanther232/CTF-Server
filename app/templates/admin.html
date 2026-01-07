@@ -70,6 +70,49 @@
     </header>
 
     <section class="mb-10">
+      <h2 class="text-2xl font-bold mb-4 text-slate-100">Teams</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <form method="POST" action="{{ url_for('admin_create_team') }}" class="glass-effect p-6 rounded-lg">
+          <h3 class="font-semibold mb-3 text-lg">Add Team</h3>
+          <div class="space-y-3">
+            <input class="w-full bg-slate-800 border border-slate-600 rounded-md px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" name="name" placeholder="Team name" required />
+            <input class="w-full bg-slate-800 border border-slate-600 rounded-md px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" type="password" name="password" placeholder="Team password" required />
+            <button class="w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-2 px-4 rounded-md transition duration-300 neon-glow">Create Team</button>
+          </div>
+        </form>
+
+        <div class="glass-effect p-6 rounded-lg">
+          <h3 class="font-semibold mb-3 text-lg">Existing Teams</h3>
+          <div class="space-y-4">
+            {% for t in teams %}
+            <form method="POST" action="{{ url_for('admin_set_team_leader', team_id=t.id) }}" class="flex flex-col gap-3">
+              <div class="flex items-center justify-between">
+                <div class="text-white font-semibold">{{ t.name }}</div>
+                <button formmethod="POST" formaction="{{ url_for('admin_delete_team', team_id=t.id) }}" class="bg-rose-600 hover:bg-rose-700 text-white font-semibold py-1 px-3 rounded-md transition duration-300" onclick="return confirm('Delete this team? This removes memberships too.')">Delete</button>
+              </div>
+              <div class="text-sm text-slate-300 flex gap-4">
+                <span>Members: {{ t.memberships|length }}</span>
+                <span>Leader: {% if t.leader_user_id %}{% set lu = users|selectattr('id', 'equalto', t.leader_user_id)|first %}{{ lu.username if lu else 'Unknown' }}{% else %}—{% endif %}</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <select class="w-full bg-slate-800 border border-slate-600 rounded-md px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" name="leader_user_id">
+                  <option value="">— No leader —</option>
+                  {% for u in users %}
+                  <option value="{{ u.id }}" {% if t.leader_user_id == u.id %}selected{% endif %}>{{ u.username }}</option>
+                  {% endfor %}
+                </select>
+                <button class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 px-3 rounded-md transition duration-300">Set Leader</button>
+              </div>
+            </form>
+            {% else %}
+            <p class="text-slate-400">No teams yet.</p>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="mb-10">
       <h2 class="text-2xl font-bold mb-4 text-slate-100">Lessons</h2>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         
@@ -153,6 +196,21 @@
                   <input type="checkbox" name="is_active" value="1" {% if c.is_active %}checked{% endif %} class="bg-slate-800 border-slate-600 rounded text-sky-500 focus:ring-sky-500"/>
                   Active
                 </label>
+                <div class="flex items-center gap-2 text-sm text-slate-300">
+                  <span>Flag:</span>
+                  <span
+                    id="flag-value-{{ c.id }}"
+                    class="font-mono text-sky-300"
+                    data-flag="{{ c.secret.flag_plain if c.secret is not none else '' }}"
+                    data-revealed="false"
+                  >••••••••••</span>
+                  <button
+                    type="button"
+                    class="bg-slate-700 hover:bg-slate-600 text-white text-xs px-2 py-1 rounded-md transition"
+                    data-flag-toggle
+                    data-flag-target="flag-value-{{ c.id }}"
+                  >Show</button>
+                </div>
               </div>
               <input class="w-full bg-slate-800 border border-slate-600 rounded-md px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" name="flag" placeholder="New flag (leave blank to keep)" />
             </div>
@@ -169,4 +227,26 @@
     </section>
   </div>
 </body>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    // Delegate clicks for all flag toggle buttons
+    document.body.addEventListener('click', (evt) => {
+      const btn = evt.target.closest('[data-flag-toggle]');
+      if (!btn) return;
+      const targetId = btn.getAttribute('data-flag-target');
+      const flagEl = document.getElementById(targetId);
+      if (!flagEl) return;
+      const revealed = flagEl.getAttribute('data-revealed') === 'true';
+      if (revealed) {
+        flagEl.textContent = '••••••••••';
+        flagEl.setAttribute('data-revealed', 'false');
+        btn.textContent = 'Show';
+      } else {
+        flagEl.textContent = flagEl.getAttribute('data-flag') || '';
+        flagEl.setAttribute('data-revealed', 'true');
+        btn.textContent = 'Hide';
+      }
+    });
+  });
+</script>
 </html>
