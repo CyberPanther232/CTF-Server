@@ -101,7 +101,7 @@
             <div class="w-full max-w-md">
                 <div class="text-center mb-8">
                     <h1 class="text-4xl font-bold text-sky-400 neon-text font-mono">CTF_PLATFORM</h1>
-                    <p class="text-slate-400 mt-2">Login to start hacking</p>
+                    <p class="text-slate-400 mt-2">Are you ready?</p>
                 </div>
                 <form action="/login" method="POST" class="glass-effect rounded-lg p-8 space-y-6">
                     <div id="login-error-container"></div>
@@ -122,18 +122,8 @@
                     </p>
                 </form>
 
-                <!-- MFA step shown when mfa=required -->
-                <form id="mfa-login-form" action="/login/mfa" method="POST" class="glass-effect rounded-lg p-8 space-y-4 mt-4 hidden">
-                    <div class="text-center">
-                        <h2 class="text-xl font-semibold text-white">Authentication Required</h2>
-                        <p class="text-slate-400 text-sm mt-1">Enter the 6-digit code from your authenticator app.</p>
-                    </div>
-                    <div>
-                        <label for="mfa-login-token" class="block text-sm font-medium text-slate-300 mb-1">Authentication Code</label>
-                        <input type="text" id="mfa-login-token" name="token" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required class="w-full bg-slate-800 border border-slate-600 rounded-md px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" placeholder="123456">
-                    </div>
-                    <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md transition duration-300">Verify & Login</button>
-                </form>
+                <!-- Inline MFA form kept hidden; modal used instead -->
+                <form id="mfa-login-form" action="/login/mfa" method="POST" class="hidden"></form>
             </div>
         </main>
 
@@ -175,7 +165,8 @@
                 </form>
             </div>
         </main>
-        
+
+        <!-- Main App Container -->
         <div id="app-container" class="hidden">
             <header class="glass-effect sticky top-0 z-50">
                 <nav class="container mx-auto px-6 py-3 flex justify-between items-center">
@@ -183,6 +174,7 @@
                     <div class="flex items-center space-x-6">
                         <a href="#index" onclick="navigate('index')" class="nav-link text-slate-300 hover:text-sky-400 transition">Challenges</a>
                         <a href="#leaderboard" onclick="navigate('leaderboard')" class="nav-link text-slate-300 hover:text-sky-400 transition">Leaderboard</a>
+                        <a href="#teams" onclick="navigate('teams')" class="nav-link text-slate-300 hover:text-sky-400 transition">Teams</a>
                         <a href="#profile" onclick="navigate('profile')" class="nav-link text-slate-300 hover:text-sky-400 transition">Profile</a>
                         <a href="/admin" onclick="navigate('admin')" class="nav-link text-slate-300 hover:text-sky-400 transition hidden" id="admin-link">Admin</a>
                         <a href="/logout" class="nav-link bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-md text-sm font-semibold transition">Logout</a>
@@ -190,12 +182,29 @@
                 </nav>
             </header>
 
+            <!-- Index Page -->
             <main id="index-page" class="page hidden p-6 container mx-auto">
                 <h1 class="text-3xl font-bold mb-6 text-slate-100">Challenges</h1>
                 <div class="space-y-4" id="levels-accordion">
                     </div>
             </main>
 
+            <!-- Teams Page -->
+                        <main id="teams-page" class="page hidden p-6 container mx-auto">
+                                <h1 class="text-3xl font-bold mb-6 text-slate-100">Teams</h1>
+                                <div class="mb-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <form id="create-team-form" class="glass-effect rounded-lg p-5 space-y-3">
+                                        <h3 class="text-lg font-bold text-white">Create a Team</h3>
+                                        <input id="create-team-name" placeholder="Team name" class="w-full bg-slate-800 border border-slate-600 rounded-md px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" />
+                                        <input id="create-team-password" type="password" placeholder="Team password" class="w-full bg-slate-800 border border-slate-600 rounded-md px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" />
+                                        <div id="create-team-status" class="text-sm h-5"></div>
+                                        <button class="w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-2 px-4 rounded-md transition duration-300 neon-glow">Create Team</button>
+                                    </form>
+                                </div>
+                                <div id="teams-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+                        </main>
+
+            <!-- Leaderboard Page -->
             <main id="leaderboard-page" class="page hidden p-6 container mx-auto">
                 <h1 class="text-3xl font-bold mb-6 text-slate-100">Leaderboard</h1>
                 <div class="glass-effect rounded-lg overflow-hidden">
@@ -205,7 +214,7 @@
                                 <th class="p-4 font-semibold text-slate-300">Rank</th>
                                 <th class="p-4 font-semibold text-slate-300">Username</th>
                                 <th class="p-4 font-semibold text-slate-300">Score</th>
-                                <th class="p-4 font-semibold text-slate-300">Experience</th>
+                                <th class="p-4 font-semibold text-slate-300">Challenges Completed</th>
                             </tr>
                         </thead>
                         <tbody id="leaderboard-body" class="divide-y divide-slate-700">
@@ -214,12 +223,13 @@
                 </div>
             </main>
 
+            <!-- Profile Page -->
             <main id="profile-page" class="page hidden p-6 container mx-auto">
                 <h1 class="text-3xl font-bold mb-6 text-slate-100">User Profile</h1>
                  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div class="md:col-span-1 glass-effect rounded-lg p-6 flex flex-col items-center text-center">
-                        <div class="w-24 h-24 rounded-full bg-slate-700 mb-4 flex items-center justify-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-sky-400"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                        <div class="w-24 h-24 rounded-full bg-slate-700 mb-4 overflow-hidden">
+                            <img id="profile-avatar" alt="Profile image" class="w-24 h-24 object-cover" />
                         </div>
                         <h2 id="profile-username" class="text-2xl font-bold text-white"></h2>
                         <div class="w-full mt-6 text-left">
@@ -228,10 +238,18 @@
                                 <span id="profile-score" class="font-mono font-semibold text-sky-400"></span>
                             </div>
                              <div class="flex justify-between items-center">
-                                <span class="text-sm text-slate-300">Experience</span>
-                                <span id="profile-experience" class="font-mono font-semibold text-green-400"></span>
+                                <span class="text-sm text-slate-300">Challenges Completed</span>
+                                <span id="profile-completed" class="font-mono font-semibold text-green-400"></span>
                             </div>
                         </div>
+                        <form id="profile-image-form" class="mt-6 w-full">
+                            <label for="profile-image-input" class="block text-sm text-slate-300 mb-2">Upload Profile Picture (PNG/JPG)</label>
+                            <div class="flex gap-2 items-center">
+                                <input id="profile-image-input" type="file" accept="image/png,image/jpeg" class="flex-1 text-sm text-slate-300" />
+                                <button type="submit" class="px-3 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded">Upload</button>
+                            </div>
+                            <p id="profile-image-error" class="mt-2 text-sm text-red-400 hidden"></p>
+                        </form>
                     </div>
 
                     <!-- MFA Setup Card -->
@@ -264,15 +282,11 @@
         </div>
     </div>
 
-    <div id="challenge-modal" class="page hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div id="challenge-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
         <div id="modal-backdrop" class="fixed inset-0 bg-black/50 backdrop-blur-sm" onclick="closeModal()"></div>
         
         <div class="glass-effect rounded-lg w-full max-w-2xl z-10 p-6 relative">
-            
-            <button onclick="closeModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white transition">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-            </button>
-
+        
             <div class="flex justify-between items-start mb-2">
                 <div>
                     <h2 id="modal-title" class="text-2xl font-bold text-white"></h2>
@@ -298,9 +312,36 @@
                 
                 <div id="modal-status-container" class="mt-3 text-sm h-5"></div> 
 
-                <button type="submit" class="mt-4 w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-2 px-4 rounded-md transition duration-300 neon-glow">
-                    Submit Flag
-                </button>
+                <div class="mt-4 flex gap-3">
+                    <button type="submit" class="flex-1 bg-sky-500 hover:bg-sky-600 text-white font-bold py-2 px-4 rounded-md transition duration-300 neon-glow">
+                        Submit Flag
+                    </button>
+                    <button type="button" id="modal-cancel-btn" class="flex-1 bg-slate-600 hover:bg-slate-700 text-white font-bold py-2 px-4 rounded-md transition duration-300">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MFA Modal -->
+    <div id="mfa-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div id="mfa-modal-backdrop" class="fixed inset-0 bg-black/50 backdrop-blur-sm" onclick="closeMfaModal()"></div>
+        <div class="relative z-10 w-full max-w-md bg-slate-900 rounded-lg shadow-lg glass-effect p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-2xl font-bold text-white">Multi-Factor Authentication</h2>
+                <button type="button" id="mfa-modal-close" class="text-slate-400 hover:text-white" aria-label="Close" onclick="closeMfaModal()">✕</button>
+            </div>
+            <p class="text-slate-400 text-sm mb-3">Enter the 6-digit code from your authenticator app.</p>
+            <form id="mfa-login-modal-form" action="/login/mfa" method="POST" class="space-y-4">
+                <div>
+                    <label for="mfa-login-token-modal" class="block text-sm font-medium text-slate-300 mb-1">Authentication Code</label>
+                    <input type="text" id="mfa-login-token-modal" name="token" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required class="w-full bg-slate-800 border border-slate-600 rounded-md px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" placeholder="123456">
+                </div>
+                <div class="flex gap-3">
+                    <button type="submit" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md transition">Verify & Login</button>
+                    <button type="button" class="flex-1 bg-slate-600 hover:bg-slate-700 text-white font-bold py-2 px-4 rounded-md transition" onclick="closeMfaModal()">Cancel</button>
+                </div>
             </form>
         </div>
     </div>
@@ -312,6 +353,12 @@
         async function fetchLessons() {
             const resp = await fetch('/api/lessons');
             if (!resp.ok) throw new Error('Failed to load lessons');
+            return await resp.json();
+        }
+
+        async function fetchTeams() {
+            const resp = await fetch('/api/teams');
+            if (!resp.ok) throw new Error('Failed to load teams');
             return await resp.json();
         }
 
@@ -369,37 +416,45 @@
                     return;
                 }
 
+                // If no lessons or no challenges at all, show a friendly message
+                const totalChallenges = Array.isArray(lessons)
+                    ? lessons.reduce((acc, l) => acc + ((l.challenges && l.challenges.length) || 0), 0)
+                    : 0;
+                if (!Array.isArray(lessons) || lessons.length === 0 || totalChallenges === 0) {
+                    accordionContainer.innerHTML = `<div class="text-slate-400">No challenges present.</div>`;
+                    return;
+                }
+
                 lessons.forEach((lesson, index) => {
                     const challengeCardsHTML = lesson.challenges.map(chal => `
-                        <div class="challenge-card bg-slate-800/50 rounded-lg p-5 flex flex-col justify-between">
-                            <div>
-                                <div class="flex justify-between items-start mb-2">
-                                <span class="text-sm font-semibold text-sky-400">Challenge</span>
-                                <span class="challenge-points font-mono bg-slate-700 text-sky-300 text-sm font-bold px-3 py-1 rounded-full">${chal.points}</span>
-                                </div>
+                            <div
+                                class="challenge-card bg-slate-800/50 rounded-lg p-5 flex flex-col justify-between cursor-pointer"
+                                role="button" tabindex="0"
+                                data-id="${chal.id}"
+                                data-title="${chal.title.replace(/'/g, "\\'")}"
+                                data-description="${(chal.description || '').replace(/'/g, "\\'")}"
+                                data-points="${chal.points}"
+                                data-lesson="${lesson.title.replace(/'/g, "\\'")}"
+                            >
+                                <div>
+                                    <div class="flex justify-between items-start mb-2">
+                                    <span class="text-sm font-semibold text-sky-400">Challenge</span>
+                                    <span class="challenge-points font-mono bg-slate-700 text-sky-300 text-sm font-bold px-3 py-1 rounded-full">${chal.points}</span>
+                                    </div>
 
-                                <button
-                                    class="challenge-title text-lg font-bold text-slate-100 hover:text-sky-400 transition text-left"
-                                    onclick="openModal({
-                                        id: '${chal.id}',
-                                        title: '${chal.title.replace(/'/g, "\\'")}',
-                                        description: '${(chal.description || '').replace(/'/g, "\\'")}',
-                                        points: ${chal.points},
-                                        lesson: '${lesson.title.replace(/'/g, "\\'")}'
-                                    })"
-                                >
-                                    ${chal.title}
-                                </button>
-                                <p class="text-slate-400 mt-2 text-sm">${chal.description || ''}</p>
+                                    <div class="challenge-title text-lg font-bold text-slate-100 hover:text-sky-400 transition text-left">
+                                        ${chal.title}
+                                    </div>
+                                    <p class="text-slate-400 mt-2 text-sm">${chal.description || ''}</p>
+                                </div>
                             </div>
-                        </div>
-                    `).join('');
+                        `).join('');
 
                     const lessonHTML = `
                         <details class="level-details glass-effect rounded-lg" ${index === 0 ? 'open' : ''}>
                             <summary class="level-summary p-5 cursor-pointer flex justify-between items-center">
                                 <h2 class="text-xl font-bold text-slate-100">${lesson.title}</h2>
-                                <span class="text-sm font-mono text-slate-400">${lesson.challenges.length} Challenges</span>
+                                <span class="text-sm font-mono text-slate-400 mr-6">${lesson.challenges.length} Challenge(s)</span>
                             </summary>
                             <div class="p-6 border-t border-slate-700">
                                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -412,8 +467,79 @@
                 });
                 
                 addAccordionLogic();
-                // We no longer call attachFlagSubmitHandlers() here
+                // Delegated click handler for challenge cards (bind once)
+                if (!window.__cardsClickBound__) {
+                    const accordion = document.getElementById('levels-accordion');
+                    accordion.addEventListener('click', (evt) => {
+                        const card = evt.target.closest('.challenge-card');
+                        if (!card) return;
+                        const challenge = {
+                            id: card.dataset.id,
+                            title: card.dataset.title,
+                            description: card.dataset.description,
+                            points: Number(card.dataset.points),
+                            lesson: card.dataset.lesson,
+                        };
+                        openModal(challenge);
+                    });
+                    // Optional: keyboard activation
+                    accordion.addEventListener('keydown', (evt) => {
+                        if (evt.key !== 'Enter' && evt.key !== ' ') return;
+                        const card = evt.target.closest('.challenge-card');
+                        if (!card) return;
+                        evt.preventDefault();
+                        const challenge = {
+                            id: card.dataset.id,
+                            title: card.dataset.title,
+                            description: card.dataset.description,
+                            points: Number(card.dataset.points),
+                            lesson: card.dataset.lesson,
+                        };
+                        openModal(challenge);
+                    });
+                    window.__cardsClickBound__ = true;
+                }
             }
+
+                        async function renderTeams() {
+                                const container = document.getElementById('teams-list');
+                                if (!container) return;
+                                container.innerHTML = '';
+                                let data;
+                                try {
+                                        data = await fetchTeams();
+                                } catch (e) {
+                                        container.innerHTML = `<div class="text-red-400">Error loading teams.</div>`;
+                                        return;
+                                }
+                                const teams = data?.teams || [];
+                                if (!teams.length) {
+                                        container.innerHTML = `<div class="text-slate-400">No teams present.</div>`;
+                                        return;
+                                }
+                                const myTeamId = data?.myTeamId ?? null;
+                                teams.forEach(t => {
+                                        const card = document.createElement('div');
+                                        card.className = 'glass-effect rounded-lg p-5 flex flex-col justify-between';
+                                        card.innerHTML = `
+                                                <div>
+                                                    <div class=\"flex justify-between items-start mb-2\">
+                                                        <h3 class=\"text-lg font-bold text-slate-100\">${t.name}</h3>
+                                                        <span class=\"font-mono bg-slate-700 text-sky-300 text-sm font-bold px-3 py-1 rounded-full\">${t.memberCount} member(s)</span>
+                                                    </div>
+                                                    <p class=\"text-slate-400 text-sm\">Leader: ${t.leaderUsername || '—'}</p>
+                                                </div>
+                                                <div class=\"mt-4\">
+                                                    ${myTeamId === t.id ? `
+                                                        <button disabled class=\"w-full bg-slate-700 text-white font-bold py-2 px-4 rounded-md\">Joined</button>
+                                                    ` : `
+                                                        <button data-team-join=\"${t.id}\" class=\"w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-2 px-4 rounded-md transition duration-300 neon-glow\">Join Team</button>
+                                                    `}
+                                                </div>
+                                        `;
+                                        container.appendChild(card);
+                                });
+                        }
 
             function addAccordionLogic() {
                 const details = document.querySelectorAll('.level-details');
@@ -478,6 +604,12 @@
                     }
 
                     if (data.correct) {
+
+                        if (data.duplicate) {
+                            modalStatus.textContent = 'Flag already solved.';
+                            modalStatus.className = 'mt-3 text-sm text-amber-300';
+                            return;
+                        }
                         modalStatus.textContent = `Correct! +${data.points ?? ''} points`;
                         modalStatus.className = 'mt-3 text-sm text-green-400';
                         document.getElementById('modal-flag-input').value = ''; // Clear on success
@@ -495,6 +627,15 @@
                 }
             });
             // The old attachFlagSubmitHandlers function is no longer needed
+
+            // Cancel button handler to close the modal
+            const cancelBtn = document.getElementById('modal-cancel-btn');
+            if (cancelBtn) {
+                cancelBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    closeModal();
+                });
+            }
 
             // --- AUTH & ROUTING ---
             async function handleRouting() {
@@ -528,6 +669,7 @@
                 });
 
                 if (pageId === 'index') renderChallenges();
+                if (pageId === 'teams') await renderTeams();
                 if (pageId === 'leaderboard') await fetchLeaderboardData();
                 if (pageId === 'profile') await populateProfileData();
                 
@@ -657,12 +799,18 @@
                     console.error("Error checking login status:", error);
                     currentUser = null;
                 }
-                // Toggle MFA login form if required
+                // Toggle MFA modal if required
                 const params = new URLSearchParams(window.location.search);
                 const mfaRequired = params.get('mfa') === 'required';
                 const mfaForm = document.getElementById('mfa-login-form');
-                if (mfaForm) {
-                    mfaForm.classList.toggle('hidden', !mfaRequired);
+                if (mfaForm) mfaForm.classList.add('hidden'); // always hidden; use modal
+                const loginForm = document.querySelector('#login-page form[action="/login"]');
+                if (mfaRequired) {
+                    if (loginForm) loginForm.classList.add('hidden');
+                    openMfaModal();
+                } else {
+                    if (loginForm) loginForm.classList.remove('hidden');
+                    closeMfaModal();
                 }
 
                 updateNavbar();
@@ -673,7 +821,16 @@
                 if (!currentUser) return;
                 document.getElementById('profile-username').textContent = currentUser.username;
                 document.getElementById('profile-score').textContent = currentUser.score;
-                document.getElementById('profile-experience').textContent = currentUser.experience;
+                document.getElementById('profile-completed').textContent = currentUser.completed;
+                const avatar = document.getElementById('profile-avatar');
+                if (avatar) {
+                    if (currentUser.avatarUrl) {
+                        // cache-bust to reflect recent uploads
+                        avatar.src = currentUser.avatarUrl + `?t=${Date.now()}`;
+                    } else {
+                        avatar.removeAttribute('src');
+                    }
+                }
 
                 // Load solved challenges
                 const list = document.getElementById('solved-challenges-list');
@@ -707,12 +864,129 @@
                 }
             }
 
+            // Handle profile image upload
+            const profileForm = document.getElementById('profile-image-form');
+            if (profileForm) {
+                profileForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const input = document.getElementById('profile-image-input');
+                    const err = document.getElementById('profile-image-error');
+                    err.classList.add('hidden');
+                    err.textContent = '';
+                    if (!input || !input.files || input.files.length === 0) {
+                        err.textContent = 'Please select an image file.';
+                        err.classList.remove('hidden');
+                        return;
+                    }
+                    const file = input.files[0];
+                    if (!['image/png', 'image/jpeg'].includes(file.type)) {
+                        err.textContent = 'Only PNG and JPG files are allowed.';
+                        err.classList.remove('hidden');
+                        return;
+                    }
+                    const fd = new FormData();
+                    fd.append('image', file);
+                    try {
+                        const resp = await fetch('/api/me/profile-image', { method: 'POST', body: fd });
+                        const data = await resp.json();
+                        if (!resp.ok || !data.ok) throw new Error(data.error || 'Upload failed');
+                        // Refresh avatar
+                        if (data.avatarUrl) {
+                            const avatar = document.getElementById('profile-avatar');
+                            if (avatar) avatar.src = data.avatarUrl + `?t=${Date.now()}`;
+                        }
+                        input.value = '';
+                    } catch (error) {
+                        err.textContent = String(error);
+                        err.classList.remove('hidden');
+                    }
+                });
+            }
+            // --- MFA MODAL LOGIC ---
+            const mfaModal = document.getElementById('mfa-modal');
+            function openMfaModal() {
+                if (!mfaModal) return;
+                mfaModal.classList.remove('hidden');
+                document.body.classList.add('overflow-hidden');
+                const tokenInput = document.getElementById('mfa-login-token-modal');
+                if (tokenInput) setTimeout(() => tokenInput.focus(), 50);
+            }
+            function closeMfaModal() {
+                if (!mfaModal) return;
+                mfaModal.classList.add('hidden');
+                document.body.classList.remove('overflow-hidden');
+            }
+
             window.addEventListener('hashchange', handleRouting);
 
             // --- INITIALIZATION ---
             await checkLoginStatus();
             // Initialize MFA handlers for profile page
             setupMFA();
+        });
+
+        // Delegated handler for join team buttons
+        document.addEventListener('click', async (e) => {
+            const btn = e.target.closest('[data-team-join]');
+            if (!btn) return;
+            const teamId = btn.getAttribute('data-team-join');
+            const password = prompt('Enter team password to join:');
+            if (password === null) return;
+            try {
+                const resp = await fetch(`/api/teams/${teamId}/join`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password })
+                });
+                const data = await resp.json().catch(() => ({}));
+                if (!resp.ok) {
+                    alert(data?.error || 'Failed to join team');
+                    return;
+                }
+                alert('Joined team successfully');
+                if (window.location.hash.substring(1) === 'teams') {
+                    await (typeof renderTeams === 'function' ? renderTeams() : Promise.resolve());
+                }
+            } catch (err) {
+                alert('Network error joining team');
+            }
+        });
+
+        // Create team form handler
+        document.addEventListener('submit', async (e) => {
+            if (e.target && e.target.id === 'create-team-form') {
+                e.preventDefault();
+                const name = document.getElementById('create-team-name').value.trim();
+                const password = document.getElementById('create-team-password').value.trim();
+                const statusEl = document.getElementById('create-team-status');
+                statusEl.textContent = '';
+                if (!name || !password) {
+                    statusEl.textContent = 'Name and password are required.';
+                    statusEl.className = 'text-sm text-amber-300 h-5';
+                    return;
+                }
+                try {
+                    const resp = await fetch('/api/teams', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, password })
+                    });
+                    const data = await resp.json().catch(() => ({}));
+                    if (!resp.ok) {
+                        statusEl.textContent = data?.error || 'Failed to create team';
+                        statusEl.className = 'text-sm text-red-400 h-5';
+                        return;
+                    }
+                    statusEl.textContent = 'Team created!';
+                    statusEl.className = 'text-sm text-green-400 h-5';
+                    document.getElementById('create-team-name').value = '';
+                    document.getElementById('create-team-password').value = '';
+                    await (typeof renderTeams === 'function' ? renderTeams() : Promise.resolve());
+                } catch (err) {
+                    statusEl.textContent = 'Network error creating team';
+                    statusEl.className = 'text-sm text-red-400 h-5';
+                }
+            }
         });
 
         async function fetchLeaderboardData() {
@@ -731,7 +1005,8 @@
                 users.forEach((user, index) => {
                     const row = document.createElement('tr');
                     row.className = "hover:bg-slate-800 transition";
-                    row.innerHTML = `<td class="p-4 font-mono">${index + 1}</td><td class="p-4 font-semibold text-slate-100">${user.username}</td><td class="p-4 font-mono text-sky-400">${user.score}</td><td class="p-4 font-mono text-green-400">${user.experience}</td>`;
+                    const avatarImg = user.avatarUrl ? `<img src="${user.avatarUrl}" alt="avatar" class="w-8 h-8 rounded-full object-cover mr-3" />` : `<div class="w-8 h-8 rounded-full bg-slate-700 mr-3"></div>`;
+                    row.innerHTML = `<td class="p-4 font-mono">${index + 1}</td><td class="p-4"><div class="flex items-center">${avatarImg}<span class="font-semibold text-slate-100">${user.username}</span></div></td><td class="p-4 font-mono text-sky-400">${user.score}</td><td class="p-4 font-mono text-green-400">${user.completed}</td>`;
                     leaderboardBody.appendChild(row);
                 });
             } catch (error) {
